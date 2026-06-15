@@ -1,0 +1,8 @@
+# Caddyfile — reverse proxy + HTTPS otomatis untuk Mprastore BOT.
+# Domain diambil dari variabel DOMAIN di .env (mis. DOMAIN=mprastorebot.com).
+# Caddy otomatis meminta & memperbarui sertifikat TLS dari Let's Encrypt.
+
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy bot:3000
+}

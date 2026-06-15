@@ -47,6 +47,10 @@ export function createWebServer(telegram: Telegram): Express {
   const basePath = config.adminWebPath;
 
   // Keamanan header HTTP.
+  // Catatan: header yang hanya berfungsi di origin tepercaya (HTTPS) dimatикan
+  // saat NODE_ENV bukan production agar akses langsung via http://IP:PORT tidak
+  // memaksa upgrade ke https (yang menyebabkan CSS gagal dimuat / SSL error).
+  const httpsAware = config.isProduction;
   app.use(
     helmet({
       contentSecurityPolicy: {
@@ -57,8 +61,15 @@ export function createWebServer(telegram: Telegram): Express {
           imgSrc: ["'self'", 'data:'],
           formAction: ["'self'"],
           frameAncestors: ["'none'"],
+          // Jangan paksa upgrade ke https; biarkan reverse proxy yang menangani HTTPS.
+          upgradeInsecureRequests: null,
         },
       },
+      // Header berikut diabaikan/menimbulkan warning di origin non-HTTPS.
+      crossOriginOpenerPolicy: httpsAware,
+      originAgentCluster: httpsAware,
+      // HSTS hanya relevan di HTTPS.
+      hsts: httpsAware,
     }),
   );
 

@@ -36,8 +36,29 @@ services:
       ADMIN_WEB_PASSWORD: ${ADMIN_WEB_PASSWORD:-}
       SESSION_SECRET: ${SESSION_SECRET:-}
       SESSION_MAX_AGE_HOURS: ${SESSION_MAX_AGE_HOURS:-8}
+    # Port 3000 di-expose ke localhost saja; akses publik lewat Caddy (HTTPS).
+    # Ganti ke "127.0.0.1:${PORT:-3000}:3000" untuk menutup akses langsung dari internet.
     ports:
       - "${PORT:-3000}:3000"
 
+  # Reverse proxy + HTTPS otomatis (Let's Encrypt) untuk domain.
+  # Aktif hanya jika DOMAIN diisi di .env. Jika tidak pakai domain, abaikan service ini.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - bot
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:
