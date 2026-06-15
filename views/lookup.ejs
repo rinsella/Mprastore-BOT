@@ -1,0 +1,38 @@
+<%- include('partials/head') %>
+
+<section class="card">
+  <h2>Lookup RDAP Manual</h2>
+  <form method="POST" action="<%= base %>/lookup" class="filters">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <input type="text" name="domain" placeholder="example.com" value="<%= domain %>" required />
+    <button type="submit" class="btn btn-primary btn-sm">Cek RDAP</button>
+  </form>
+
+  <% if (error) { %>
+    <div class="flash flash-error"><%= error %></div>
+  <% } %>
+
+  <% if (result) { %>
+    <h3>Hasil: <span class="mono"><%= result.domain %></span></h3>
+    <table class="kv">
+      <tr><th>ldhName</th><td class="mono"><%= result.ldhName || '-' %></td></tr>
+      <tr><th>RDAP Server</th><td class="mono"><%= result.rdapServer %></td></tr>
+      <tr><th>Status</th><td><%= result.status.join(', ') || '-' %></td></tr>
+    </table>
+    <h3>Nameserver</h3>
+    <ul class="ns-list">
+      <% if (result.nameservers.length === 0) { %><li>(kosong)</li><% } %>
+      <% result.nameservers.forEach(function (ns) { %><li class="mono"><%= ns %></li><% }); %>
+    </ul>
+    <% if (result.events && result.events.length) { %>
+      <h3>Events</h3>
+      <ul class="ns-list">
+        <% result.events.forEach(function (e) { %>
+          <li><%= e.eventAction %>: <span class="mono"><%= e.eventDate %></span></li>
+        <% }); %>
+      </ul>
+    <% } %>
+  <% } %>
+</section>
+
+<%- include('partials/foot') %>

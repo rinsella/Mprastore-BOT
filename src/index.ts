@@ -1,8 +1,8 @@
-import express from 'express';
 import { config } from './config';
 import { connectDb, disconnectDb } from './db';
-import { createBot } from './bot';
+import { createBot, setupBotCommands } from './bot';
 import { startAutoRecheck, stopAutoRecheck } from './services/checkerService';
+import { createWebServer } from './web/server';
 
 async function main(): Promise<void> {
   // Koneksi database.
@@ -11,17 +11,17 @@ async function main(): Promise<void> {
 
   const bot = createBot();
 
-  // Express health check server (opsional).
-  const app = express();
-  app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', uptime: process.uptime() });
-  });
+  // Web server: /health selalu aktif, web admin panel opsional (ADMIN_WEB_ENABLED).
+  const app = createWebServer(bot.telegram);
   const server = app.listen(config.port, () => {
-    console.log(`Health check berjalan di port ${config.port} (/health).`);
+    console.log(`Web server berjalan di port ${config.port} (/health).`);
   });
 
   // Jalankan auto-recheck berkala.
   startAutoRecheck(bot.telegram);
+
+  // Set menu command Telegram (best-effort).
+  await setupBotCommands(bot);
 
   // Jalankan bot (long polling).
   await bot.launch();

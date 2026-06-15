@@ -1,0 +1,119 @@
+<%- include('partials/head') %>
+
+<section class="card">
+  <form class="filters" method="GET" action="<%= base %>/orders">
+    <input type="text" name="domain" placeholder="Cari domain..." value="<%= filters.domain %>" />
+    <input type="text" name="username" placeholder="Cari username..." value="<%= filters.username %>" />
+    <select name="status">
+      <option value="">Semua Status</option>
+      <% statuses.forEach(function (s) { %>
+        <option value="<%= s %>" <%= filters.status === s ? 'selected' : '' %>><%= helpers.statusLabelId(s) %></option>
+      <% }); %>
+    </select>
+    <select name="nsType">
+      <option value="">Semua Tipe NS</option>
+      <% nsTypes.forEach(function (t) { %>
+        <option value="<%= t %>" <%= filters.nsType === t ? 'selected' : '' %>><%= helpers.nsTypeLabelId(t) %></option>
+      <% }); %>
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+    <a class="btn btn-sm" href="<%= base %>/orders">Reset</a>
+  </form>
+</section>
+
+<section class="card">
+  <div class="card-head">
+    <h2>Daftar Order (<%= result.total %>)</h2>
+  </div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Kode</th>
+          <th>Domain</th>
+          <th>Customer</th>
+          <th>TG ID</th>
+          <th>NS</th>
+          <th>NS Tujuan</th>
+          <th>NS Saat Ini</th>
+          <th>Status</th>
+          <th>Dibuat</th>
+          <th>Dicek</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (result.orders.length === 0) { %>
+          <tr><td colspan="12" class="empty">Tidak ada order yang cocok.</td></tr>
+        <% } %>
+        <% result.orders.forEach(function (o) { %>
+          <tr>
+            <td>#<%= o.id %></td>
+            <td><%= o.orderCode %></td>
+            <td class="mono"><%= o.domain %></td>
+            <td><%= o.username ? '@' + o.username : '-' %></td>
+            <td class="mono"><%= helpers.bigIntToString(o.telegramUserId) %></td>
+            <td><%= helpers.nsTypeLabelId(o.nsType) %></td>
+            <td class="ns-cell">
+              <% helpers.nsArray(o.expectedNameservers).forEach(function (ns) { %><div><%= ns %></div><% }); %>
+            </td>
+            <td class="ns-cell">
+              <% var cur = helpers.nsArray(o.currentNameservers); %>
+              <% if (cur.length === 0) { %>-<% } %>
+              <% cur.forEach(function (ns) { %><div><%= ns %></div><% }); %>
+            </td>
+            <td><span class="badge <%= helpers.statusBadgeClass(o.status) %>"><%= helpers.statusLabelId(o.status) %></span></td>
+            <td><%= helpers.formatDate(o.createdAt) %></td>
+            <td><%= helpers.formatDate(o.lastCheckedAt) %></td>
+            <td class="actions-cell">
+              <a class="btn btn-xs" href="<%= base %>/orders/<%= o.id %>">Detail</a>
+              <form method="POST" action="<%= base %>/orders/<%= o.id %>/check" class="inline">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <button class="btn btn-xs">Cek NS</button>
+              </form>
+              <form method="POST" action="<%= base %>/orders/<%= o.id %>/mark-changed" class="inline">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <button class="btn btn-xs btn-green">Tandai Diubah</button>
+              </form>
+              <% if (o.status === 'REJECTED' || o.status === 'FAILED_LOOKUP') { %>
+                <form method="POST" action="<%= base %>/orders/<%= o.id %>/reopen" class="inline">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                  <button class="btn btn-xs btn-orange">Buka Lagi</button>
+                </form>
+              <% } else { %>
+                <form method="POST" action="<%= base %>/orders/<%= o.id %>/reject" class="inline" onsubmit="return confirm('Tolak order ini?');">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                  <button class="btn btn-xs btn-red">Tolak</button>
+                </form>
+              <% } %>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if (result.totalPages > 1) { %>
+    <div class="pagination">
+      <% function pageUrl(p) {
+        var q = [];
+        if (filters.domain) q.push('domain=' + encodeURIComponent(filters.domain));
+        if (filters.username) q.push('username=' + encodeURIComponent(filters.username));
+        if (filters.status) q.push('status=' + encodeURIComponent(filters.status));
+        if (filters.nsType) q.push('nsType=' + encodeURIComponent(filters.nsType));
+        q.push('page=' + p);
+        return base + '/orders?' + q.join('&');
+      } %>
+      <% if (result.page > 1) { %>
+        <a class="btn btn-sm" href="<%= pageUrl(result.page - 1) %>">← Sebelumnya</a>
+      <% } %>
+      <span class="page-info">Halaman <%= result.page %> / <%= result.totalPages %></span>
+      <% if (result.page < result.totalPages) { %>
+        <a class="btn btn-sm" href="<%= pageUrl(result.page + 1) %>">Berikutnya →</a>
+      <% } %>
+    </div>
+  <% } %>
+</section>
+
+<%- include('partials/foot') %>

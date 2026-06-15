@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Login · Mprastore BOT Admin</title>
+  <link rel="stylesheet" href="<%= base %>/assets/css/admin.css" />
+</head>
+<body class="login-body">
+  <div class="login-card">
+    <div class="login-brand">
+      <span class="brand-logo">M</span>
+      <h1>Mprastore BOT</h1>
+      <p>Panel Admin Web</p>
+    </div>
+    <% if (typeof flash !== 'undefined' && flash) { %>
+      <div class="flash flash-<%= flash.type %>"><%= flash.message %></div>
+    <% } %>
+    <form method="POST" action="<%= base %>/login" class="login-form" autocomplete="off">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>
+        Username
+        <input type="text" name="username" required autofocus />
+      </label>
+      <label>
+        Password
+        <input type="password" name="password" required />
+      </label>
+      <button type="submit" class="btn btn-primary btn-block">Masuk</button>
+    </form>
+    <p class="login-hint">Gunakan HTTPS di produksi. Jangan bagikan kredensial.</p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<%- include('partials/head') %>
+
+<section class="cards">
+  <div class="card stat">
+    <div class="stat-label">Total Order</div>
+    <div class="stat-value"><%= stats.total %></div>
+  </div>
+  <a class="card stat card-link" href="<%= base %>/orders?status=WAITING_ADMIN">
+    <div class="stat-label">Menunggu Admin</div>
+    <div class="stat-value badge-blue-text"><%= stats.waitingAdmin %></div>
+  </a>
+  <a class="card stat card-link" href="<%= base %>/orders?status=WAITING_PROPAGATION">
+    <div class="stat-label">Menunggu Propagasi</div>
+    <div class="stat-value badge-orange-text"><%= stats.waitingPropagation %></div>
+  </a>
+  <a class="card stat card-link" href="<%= base %>/orders?status=CONNECTED">
+    <div class="stat-label">Terhubung</div>
+    <div class="stat-value badge-green-text"><%= stats.connected %></div>
+  </a>
+  <a class="card stat card-link" href="<%= base %>/orders?status=REJECTED">
+    <div class="stat-label">Ditolak</div>
+    <div class="stat-value badge-red-text"><%= stats.rejected %></div>
+  </a>
+  <a class="card stat card-link" href="<%= base %>/orders?status=FAILED_LOOKUP">
+    <div class="stat-label">Gagal Lookup</div>
+    <div class="stat-value badge-red-text"><%= stats.failedLookup %></div>
+  </a>
+</section>
+
+<section class="card">
+  <div class="card-head">
+    <h2>Order Terbaru</h2>
+    <a class="btn btn-sm" href="<%= base %>/orders">Lihat Semua</a>
+  </div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Kode</th>
+          <th>Domain</th>
+          <th>Customer</th>
+          <th>Tipe NS</th>
+          <th>Status</th>
+          <th>Dibuat</th>
+          <th>Dicek</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (recent.length === 0) { %>
+          <tr><td colspan="9" class="empty">Belum ada order.</td></tr>
+        <% } %>
+        <% recent.forEach(function (o) { %>
+          <tr>
+            <td>#<%= o.id %></td>
+            <td><%= o.orderCode %></td>
+            <td class="mono"><%= o.domain %></td>
+            <td><%= o.username ? '@' + o.username : '-' %></td>
+            <td><%= helpers.nsTypeLabelId(o.nsType) %></td>
+            <td><span class="badge <%= helpers.statusBadgeClass(o.status) %>"><%= helpers.statusLabelId(o.status) %></span></td>
+            <td><%= helpers.formatDate(o.createdAt) %></td>
+            <td><%= helpers.formatDate(o.lastCheckedAt) %></td>
+            <td><a class="btn btn-sm" href="<%= base %>/orders/<%= o.id %>">Detail</a></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

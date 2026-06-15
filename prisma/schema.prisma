@@ -50,14 +50,28 @@ model Order {
   connectedAt         DateTime?
   rejectedAt          DateTime?
   rejectReason        String?
+  lastError           String?
   rdapRaw             Json?
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes OrderNote[]
 
   @@index([status])
   @@index([telegramUserId])
+}
+
+model OrderNote {
+  id              Int      @id @default(autoincrement())
+  orderId         Int
+  actorTelegramId BigInt?
+  note            String
+  createdAt       DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
 }
 
 model AuditLog {

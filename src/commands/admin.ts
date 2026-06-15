@@ -10,6 +10,7 @@ import {
   getOrderById,
   getPendingOrders,
   getRecentOrders,
+  reopenOrder,
   updateOrder,
 } from '../services/orderService';
 import {
@@ -21,6 +22,7 @@ import {
 } from '../services/checkerService';
 import { icannLookupUrl, rdapLookup } from '../services/rdap';
 import { validateDomain } from '../utils/domain';
+import { webAdminUrl } from '../config';
 
 function nsTypeLabel(t: Order['nsType']): string {
   return t === 'CLOUDFLARE' ? 'Cloudflare' : 'Custom / Non-Cloudflare';
@@ -42,6 +44,9 @@ export function buildAdminOrderKeyboard(orderId: number) {
     ],
     [
       Markup.button.callback('❌ Tolak Order', `admin_reject:${orderId}`),
+      Markup.button.callback('↩️ Buka Kembali', `admin_reopen:${orderId}`),
+    ],
+    [
       Markup.button.callback('💬 Hubungi Customer', `admin_contact:${orderId}`),
     ],
   ]);
@@ -128,8 +133,21 @@ export function registerAdminCommands(bot: Telegraf<BotContext>): void {
         '/connected - Order yang sudah connect',
         '/detail <id> atau /order_<id> - Detail order',
         '/lookup <domain> - Cek RDAP manual',
+        '/reject <id> <alasan> - Tolak order dengan alasan',
+        '/webadmin - Link panel web admin',
       ].join('\n'),
     );
+  });
+
+  bot.command('webadmin', adminOnly, async (ctx) => {
+    const url = webAdminUrl();
+    if (!url) {
+      await ctx.reply('WEB_PUBLIC_URL belum dikonfigurasi.');
+      return;
+    }
+    await ctx.reply('🌐 Panel Web Admin:\n' + url, {
+      link_preview_options: { is_disabled: true },
+    });
   });
 
   bot.command('orders', adminOnly, async (ctx) => {
@@ -365,6 +383,23 @@ export function registerAdminCommands(bot: Telegraf<BotContext>): void {
       /* abaikan */
     }
     await ctx.reply(`❌ Order #${id} ditolak dengan alasan tercatat.`);
+  });
+
+  bot.action(/^admin_reopen:(\d+)$/, async (ctx) => {
+    if (await blockIfNotAdmin(ctx)) return;
+    const id = parseOrderId(ctx.match[1]);
+    if (id === null) {
+      await ctx.answerCbQuery('Order ID tidak valid.', { show_alert: true });
+      return;
+    }
+    const order = await getOrderById(id);
+    if (!order) {
+      await ctx.answerCbQuery('Order tidak ditemukan.', { show_alert: true });
+      return;
+    }
+    await reopenOrder(id, ctx.from?.id);
+    await ctx.answerCbQuery('Order dibuka kembali.');
+    await ctx.reply(`↩️ Order #${id} dibuka kembali ke status Menunggu Admin.`);
   });
 
   bot.action(/^admin_contact:(\d+)$/, async (ctx) => {

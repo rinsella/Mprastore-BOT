@@ -5,6 +5,7 @@ import {
   addAuditLog,
   getCurrentNameservers,
   getExpectedNameservers,
+  getOrderById,
   getOrdersForRecheck,
   updateOrder,
 } from './orderService';
@@ -82,9 +83,10 @@ export interface VerifyResult {
 export async function verifyOrder(
   telegram: Telegram,
   order: Order,
-  opts: { notifyCustomer?: boolean; notifyAdmins?: boolean } = {},
+  opts: { notifyCustomer?: boolean; notifyAdmins?: boolean; source?: string; actorTelegramId?: number | bigint } = {},
 ): Promise<VerifyResult> {
   const expected = getExpectedNameservers(order);
+  const source = opts.source ?? 'auto';
 
   try {
     const lookup = await rdapLookup(order.domain);
@@ -100,12 +102,15 @@ export async function verifyOrder(
       rdapRaw: trimRdapRaw(lookup),
       lastCheckedAt: new Date(),
       connectedAt: connected ? new Date() : undefined,
+      // Bersihkan error sebelumnya saat lookup berhasil.
+      lastError: null,
     });
 
     await addAuditLog({
       orderId: order.id,
+      actorTelegramId: opts.actorTelegramId,
       action: connected ? 'STATUS_CONNECTED' : 'STATUS_WAITING_PROPAGATION',
-      metadata: { current: lookup.nameservers, expected },
+      metadata: { current: lookup.nameservers, expected, source },
     });
 
     if (connected) {
@@ -141,15 +146,19 @@ export async function verifyOrder(
   } catch (err) {
     const message = rdapErrorMessage(err);
 
+    // Order tetap dapat dikelola: simpan pesan error & set status FAILED_LOOKUP.
+    // Customer TIDAK diberi tahu saat lookup gagal (anti-spam).
     const updated = await updateOrder(order.id, {
       status: OrderStatus.FAILED_LOOKUP,
       lastCheckedAt: new Date(),
+      lastError: message,
     });
 
     await addAuditLog({
       orderId: order.id,
+      actorTelegramId: opts.actorTelegramId,
       action: 'LOOKUP_FAILED',
-      metadata: { error: message },
+      metadata: { error: message, source },
     });
 
     return {
@@ -286,6 +295,28 @@ export function stopAutoRecheck(): void {
     clearInterval(autoRecheckTimer);
     autoRecheckTimer = null;
   }
+}
+
+/**
+ * Jalankan pengecekan RDAP untuk sebuah order secara manual (mis. dari web admin).
+ * Tidak men-spam customer: notifikasi hanya terkirim bila status menjadi CONNECTED.
+ *
+ * @param source label sumber aksi untuk audit log ('web', 'telegram', dll).
+ */
+export async function checkOrderNow(
+  telegram: Telegram,
+  orderId: number,
+  source: string,
+  actorTelegramId?: number | bigint,
+): Promise<VerifyResult | null> {
+  const order = await getOrderById(orderId);
+  if (!order) return null;
+  return verifyOrder(telegram, order, {
+    notifyCustomer: true,
+    notifyAdmins: false,
+    source,
+    actorTelegramId,
+  });
 }
 
 export { getCurrentNameservers, getExpectedNameservers };

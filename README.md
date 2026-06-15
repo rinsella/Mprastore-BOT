@@ -65,6 +65,16 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/domainbot
 CHECK_INTERVAL_MINUTES=10
 NODE_ENV=production
 PORT=3000
+
+# Web Admin Panel
+WEB_PUBLIC_URL=https://your-domain.com
+ADMIN_WEB_ENABLED=true
+ADMIN_WEB_PATH=/admin
+ADMIN_WEB_USERNAME=admin
+ADMIN_WEB_PASSWORD_HASH=
+ADMIN_WEB_PASSWORD=change_me
+SESSION_SECRET=change_this_to_random_secret
+SESSION_MAX_AGE_HOURS=8
 ```
 
 | Variabel | Wajib | Keterangan |
@@ -74,11 +84,69 @@ PORT=3000
 | `DATABASE_URL` | ✅ | Connection string PostgreSQL. |
 | `CHECK_INTERVAL_MINUTES` | ➖ | Interval auto-recheck (default `10`). |
 | `NODE_ENV` | ➖ | `production` / `development`. |
-| `PORT` | ➖ | Port health check (default `3000`). |
+| `PORT` | ➖ | Port web server (default `3000`). |
+| `WEB_PUBLIC_URL` | ➖ | URL publik (untuk link `/webadmin` di bot). Tanpa trailing slash. |
+| `ADMIN_WEB_ENABLED` | ➖ | `true` untuk mengaktifkan panel web. Jika `false`, hanya `/health` publik. |
+| `ADMIN_WEB_PATH` | ➖ | Path dasar panel (default `/admin`, bisa `/panel-mprastore`). |
+| `ADMIN_WEB_USERNAME` | ➖ | Username login web (default `admin`). |
+| `ADMIN_WEB_PASSWORD_HASH` | ➖ | **Disarankan.** Hash bcrypt password. |
+| `ADMIN_WEB_PASSWORD` | ➖ | Alternatif teks biasa. Hanya dipakai jika HASH kosong (ada peringatan di log). |
+| `SESSION_SECRET` | ➖ | Secret penandatangan cookie sesi. **Wajib di produksi.** |
+| `SESSION_MAX_AGE_HOURS` | ➖ | Masa berlaku sesi login (default `8` jam). |
 
-> **Keamanan:** `BOT_TOKEN`, `ADMIN_ID`, dan kredensial database tidak pernah di-hardcode dan tidak pernah di-log.
+> **Keamanan:** `BOT_TOKEN`, `ADMIN_IDS`, kredensial database, dan password admin tidak pernah di-hardcode dan tidak pernah di-log.
 
 ---
+
+## 🖥️ Web Admin Panel
+
+Selain panel berbasis Telegram, tersedia **dashboard web admin** yang berjalan pada Express yang sama.
+
+### Mengaktifkan
+
+1. Set `ADMIN_WEB_ENABLED=true`.
+2. Set `ADMIN_WEB_USERNAME` dan **salah satu** dari:
+   - `ADMIN_WEB_PASSWORD_HASH` (disarankan), buat dengan:
+     ```bash
+     node -e "console.log(require('bcryptjs').hashSync('passwordku',10))"
+     ```
+   - `ADMIN_WEB_PASSWORD` (teks biasa, kurang aman).
+3. Set `SESSION_SECRET` ke string acak yang panjang.
+4. (Opsional) ubah `ADMIN_WEB_PATH`, mis. `/panel-mprastore`.
+
+### Halaman & Route
+
+Semua route berada di bawah `ADMIN_WEB_PATH` (default `/admin`):
+
+| Route | Fungsi |
+|---|---|
+| `GET /admin/login` · `POST /admin/login` | Halaman & proses login. |
+| `POST /admin/logout` | Logout. |
+| `GET /admin` | Dashboard (kartu statistik + order terbaru). |
+| `GET /admin/orders` | Daftar order (cari domain/username, filter status & tipe NS, pagination). |
+| `GET /admin/orders/:id` | Detail order, timeline, audit log, catatan internal. |
+| `POST /admin/orders/:id/check` | Jalankan cek RDAP nameserver. |
+| `POST /admin/orders/:id/mark-changed` | Tandai `ADMIN_CHANGED` + notifikasi customer. |
+| `POST /admin/orders/:id/reject` | Tolak order (alasan opsional) + notifikasi customer. |
+| `POST /admin/orders/:id/reopen` | Buka kembali order gagal/ditolak ke `WAITING_ADMIN`. |
+| `POST /admin/orders/:id/note` | Tambah catatan internal (tidak terlihat customer). |
+| `POST /admin/orders/:id/notify` | Kirim update status ke customer via Telegram. |
+| `GET /admin/lookup` · `POST /admin/lookup` | Lookup RDAP manual. |
+
+Jika `ADMIN_WEB_ENABLED=false`, semua route di atas dinonaktifkan dan hanya `/health` yang publik.
+
+### 🔒 Keamanan Web Admin
+
+- Semua route admin (selain login) dilindungi sesi login.
+- Cookie sesi **HTTP-only**, `secure` otomatis aktif di `NODE_ENV=production`.
+- Proteksi **CSRF** untuk semua aksi POST.
+- **Rate limit** percobaan login (anti brute-force).
+- Header keamanan via **helmet** (termasuk CSP).
+- Login web admin & admin Telegram adalah dua proteksi terpisah.
+- **WAJIB gunakan HTTPS di produksi** (mis. lewat reverse proxy / Railway). Tanpa HTTPS, cookie & password rentan disadap.
+
+---
+
 
 ## 🤖 Cara Mendapatkan Bot Token & Admin ID
 
@@ -141,6 +209,7 @@ cd Mprastore-BOT
 # 2. Salin & isi env
 cp .env.example .env
 # isi BOT_TOKEN dan ADMIN_IDS
+# untuk web admin: ADMIN_WEB_ENABLED, ADMIN_WEB_USERNAME, ADMIN_WEB_PASSWORD(_HASH), SESSION_SECRET
 # (DATABASE_URL di-handle otomatis oleh docker-compose untuk service db)
 
 # 3. Build & jalankan
@@ -151,6 +220,10 @@ docker compose logs -f bot
 ```
 
 Migrasi database dijalankan otomatis (`prisma migrate deploy`) saat container `bot` start.
+
+Setelah berjalan, buka panel web admin di `http://server-ip:3000/admin` lalu login.
+
+> ⚠️ **Produksi:** taruh di belakang reverse proxy ber-HTTPS (Nginx/Caddy/Easypanel) sebelum diekspos ke internet.
 
 ---
 
@@ -164,6 +237,11 @@ Migrasi database dijalankan otomatis (`prisma migrate deploy`) saat container `b
    - `ADMIN_IDS`
    - `DATABASE_URL` (referensikan dari service Postgres, mis. `${{Postgres.DATABASE_URL}}`)
    - `CHECK_INTERVAL_MINUTES` (opsional)
+   - `WEB_PUBLIC_URL` (URL publik Railway, mis. `https://namamu.up.railway.app`)
+   - `ADMIN_WEB_ENABLED=true`
+   - `ADMIN_WEB_USERNAME`
+   - `ADMIN_WEB_PASSWORD` atau `ADMIN_WEB_PASSWORD_HASH`
+   - `SESSION_SECRET` (string acak)
 5. **Deploy dari GitHub** (hubungkan repo ini).
 6. Jalankan migrasi:
    ```bash
@@ -202,6 +280,7 @@ Deployment juga kompatibel dengan **Easypanel** dan **VPS** mana pun yang menduk
 | `/detail <id>` atau `/order_<id>` | Detail order + tombol aksi. |
 | `/lookup <domain>` | Cek RDAP manual. |
 | `/reject <id> <alasan>` | Tolak order dengan alasan. |
+| `/webadmin` | Tampilkan link panel web admin. |
 
 ---
 

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title><%= typeof title !== 'undefined' ? title : 'Admin' %> · Mprastore BOT</title>
+  <link rel="stylesheet" href="<%= base %>/assets/css/admin.css" />
+</head>
+<body>
+  <div class="layout">
+    <%- include('sidebar') %>
+    <div class="main">
+      <%- include('topbar') %>
+      <main class="content">
+        <% if (typeof flash !== 'undefined' && flash) { %>
+          <div class="flash flash-<%= flash.type %>"><%= flash.message %></div>
+        <% } %>

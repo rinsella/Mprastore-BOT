@@ -50,3 +50,47 @@ export function createBot(): Telegraf<BotContext> {
 
   return bot;
 }
+
+/**
+ * Set menu command Telegram saat startup.
+ * - Command global (default) untuk customer.
+ * - Command tambahan ber-scope chat untuk tiap admin (best-effort).
+ */
+export async function setupBotCommands(bot: Telegraf<BotContext>): Promise<void> {
+  const customerCommands = [
+    { command: 'start', description: 'Mulai & info bot' },
+    { command: 'order', description: 'Buat order ubah nameserver' },
+    { command: 'status', description: 'Cek status pesanan kamu' },
+    { command: 'cancel', description: 'Batalkan proses order' },
+    { command: 'help', description: 'Bantuan' },
+  ];
+
+  const adminCommands = [
+    { command: 'admin', description: 'Panel admin' },
+    { command: 'orders', description: '10 order terbaru' },
+    { command: 'pending', description: 'Order yang perlu diproses' },
+    { command: 'connected', description: 'Order yang sudah connect' },
+    { command: 'lookup', description: 'Cek RDAP manual' },
+    { command: 'webadmin', description: 'Link panel web admin' },
+    { command: 'help', description: 'Bantuan admin' },
+  ];
+
+  try {
+    // Default (semua user).
+    await bot.telegram.setMyCommands(customerCommands);
+
+    // Scope khusus tiap admin.
+    for (const adminId of config.adminIds) {
+      try {
+        await bot.telegram.setMyCommands(adminCommands, {
+          scope: { type: 'chat', chat_id: Number(adminId) },
+        });
+      } catch (err) {
+        console.error('Gagal set command admin:', (err as Error).message);
+      }
+    }
+    console.log('Menu command Telegram berhasil diset.');
+  } catch (err) {
+    console.error('Gagal set menu command Telegram:', (err as Error).message);
+  }
+}

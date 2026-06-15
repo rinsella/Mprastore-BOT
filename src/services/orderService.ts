@@ -1,4 +1,4 @@
-import { NsType, OrderStatus, Order, Prisma } from '@prisma/client';
+import { NsType, OrderStatus, Order, OrderNote, AuditLog, Prisma } from '@prisma/client';
 import { prisma } from '../db';
 
 /**
@@ -155,6 +155,7 @@ export interface UpdateOrderStatusInput {
   connectedAt?: Date;
   rejectedAt?: Date;
   lastCheckedAt?: Date;
+  lastError?: string | null;
 }
 
 export async function updateOrder(
@@ -175,6 +176,7 @@ export async function updateOrder(
   if (input.connectedAt !== undefined) data.connectedAt = input.connectedAt;
   if (input.rejectedAt !== undefined) data.rejectedAt = input.rejectedAt;
   if (input.lastCheckedAt !== undefined) data.lastCheckedAt = input.lastCheckedAt;
+  if (input.lastError !== undefined) data.lastError = input.lastError;
 
   return prisma.order.update({ where: { id }, data });
 }
@@ -215,4 +217,247 @@ export function getExpectedNameservers(order: Order): string[] {
 export function getCurrentNameservers(order: Order): string[] {
   const ns = order.currentNameservers;
   return Array.isArray(ns) ? (ns as string[]) : [];
+}
+
+// =====================================================================
+// Fungsi tambahan untuk Web Admin Panel
+// =====================================================================
+
+export interface DashboardStats {
+  total: number;
+  waitingAdmin: number;
+  adminChanged: number;
+  waitingPropagation: number;
+  connected: number;
+  rejected: number;
+  failedLookup: number;
+}
+
+/**
+ * Statistik ringkas untuk dashboard admin.
+ */
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const [
+    total,
+    waitingAdmin,
+    adminChanged,
+    waitingPropagation,
+    connected,
+    rejected,
+    failedLookup,
+  ] = await Promise.all([
+    prisma.order.count(),
+    prisma.order.count({ where: { status: OrderStatus.WAITING_ADMIN } }),
+    prisma.order.count({ where: { status: OrderStatus.ADMIN_CHANGED } }),
+    prisma.order.count({ where: { status: OrderStatus.WAITING_PROPAGATION } }),
+    prisma.order.count({ where: { status: OrderStatus.CONNECTED } }),
+    prisma.order.count({ where: { status: OrderStatus.REJECTED } }),
+    prisma.order.count({ where: { status: OrderStatus.FAILED_LOOKUP } }),
+  ]);
+
+  return {
+    total,
+    waitingAdmin,
+    adminChanged,
+    waitingPropagation,
+    connected,
+    rejected,
+    failedLookup,
+  };
+}
+
+export interface OrderFilters {
+  domain?: string;
+  username?: string;
+  status?: OrderStatus;
+  nsType?: NsType;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginatedOrders {
+  orders: Order[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/**
+ * Ambil order dengan filter pencarian, status, tipe NS, dan pagination.
+ * Selalu diurutkan dari yang terbaru.
+ */
+export async function getOrdersWithFilters(
+  filters: OrderFilters,
+): Promise<PaginatedOrders> {
+  const page = filters.page && filters.page > 0 ? filters.page : 1;
+  const pageSize = filters.pageSize && filters.pageSize > 0 ? Math.min(filters.pageSize, 100) : 20;
+
+  const where: Prisma.OrderWhereInput = {};
+
+  if (filters.domain && filters.domain.trim()) {
+    where.domain = { contains: filters.domain.trim().toLowerCase(), mode: 'insensitive' };
+  }
+  if (filters.username && filters.username.trim()) {
+    where.username = { contains: filters.username.trim().replace(/^@/, ''), mode: 'insensitive' };
+  }
+  if (filters.status) {
+    where.status = filters.status;
+  }
+  if (filters.nsType) {
+    where.nsType = filters.nsType;
+  }
+
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.order.count({ where }),
+  ]);
+
+  return {
+    orders,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+  };
+}
+
+export type OrderWithRelations = Order & {
+  user: { telegramId: bigint; username: string | null; firstName: string | null; lastName: string | null } | null;
+};
+
+/**
+ * Detail lengkap satu order beserta relasi user.
+ */
+export async function getOrderDetail(id: number): Promise<OrderWithRelations | null> {
+  return prisma.order.findUnique({
+    where: { id },
+    include: {
+      user: {
+        select: { telegramId: true, username: true, firstName: true, lastName: true },
+      },
+    },
+  });
+}
+
+/**
+ * Audit log untuk sebuah order (terbaru di atas).
+ */
+export async function getAuditLogsByOrder(orderId: number): Promise<AuditLog[]> {
+  return prisma.auditLog.findMany({
+    where: { orderId },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  });
+}
+
+/**
+ * Catatan internal admin untuk sebuah order (terbaru di atas).
+ */
+export async function getOrderNotesByOrder(orderId: number): Promise<OrderNote[]> {
+  return prisma.orderNote.findMany({
+    where: { orderId },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  });
+}
+
+/**
+ * Tambah catatan internal admin. Tidak ditampilkan ke customer.
+ */
+export async function addOrderNote(
+  orderId: number,
+  note: string,
+  actorTelegramId?: number | bigint | null,
+): Promise<OrderNote> {
+  const created = await prisma.orderNote.create({
+    data: {
+      orderId,
+      note: note.trim(),
+      actorTelegramId:
+        actorTelegramId !== undefined && actorTelegramId !== null
+          ? BigInt(actorTelegramId)
+          : null,
+    },
+  });
+  await addAuditLog({
+    orderId,
+    actorTelegramId: actorTelegramId ?? null,
+    action: 'ADMIN_NOTE',
+    metadata: { note: note.trim().slice(0, 200) },
+  });
+  return created;
+}
+
+/**
+ * Buka kembali order yang gagal/ditolak menjadi WAITING_ADMIN.
+ */
+export async function reopenOrder(
+  orderId: number,
+  actorTelegramId?: number | bigint | null,
+): Promise<Order> {
+  const updated = await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      status: OrderStatus.WAITING_ADMIN,
+      rejectedAt: null,
+      lastError: null,
+    },
+  });
+  await addAuditLog({
+    orderId,
+    actorTelegramId: actorTelegramId ?? null,
+    action: 'ADMIN_REOPEN',
+  });
+  return updated;
+}
+
+/**
+ * Tandai order sebagai ADMIN_CHANGED (admin sudah memproses perubahan NS).
+ */
+export async function markOrderChanged(
+  orderId: number,
+  actorTelegramId?: number | bigint | null,
+): Promise<Order> {
+  const updated = await prisma.order.update({
+    where: { id: orderId },
+    data: { status: OrderStatus.ADMIN_CHANGED, lastError: null },
+  });
+  await addAuditLog({
+    orderId,
+    actorTelegramId: actorTelegramId ?? null,
+    action: 'ADMIN_MARK_CHANGED',
+  });
+  return updated;
+}
+
+/**
+ * Tolak order dengan alasan opsional.
+ */
+export async function rejectOrder(
+  orderId: number,
+  reason?: string | null,
+  actorTelegramId?: number | bigint | null,
+): Promise<Order> {
+  const trimmed = reason && reason.trim() ? reason.trim() : null;
+  const updated = await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      status: OrderStatus.REJECTED,
+      rejectedAt: new Date(),
+      rejectReason: trimmed,
+    },
+  });
+  await addAuditLog({
+    orderId,
+    actorTelegramId: actorTelegramId ?? null,
+    action: trimmed ? 'ADMIN_REJECT_REASON' : 'ADMIN_REJECT',
+    metadata: trimmed ? { reason: trimmed } : undefined,
+  });
+  return updated;
 }

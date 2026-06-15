@@ -1,8 +1,9 @@
 import { Telegraf } from 'telegraf';
 import { BotContext } from '../types';
 import { upsertUser } from '../services/orderService';
+import { isAdmin, webAdminUrl } from '../config';
 
-const START_MESSAGE = [
+const CUSTOMER_START = [
   'Halo 👋',
   'Saya bot order nameserver domain.',
   '',
@@ -15,7 +16,7 @@ const START_MESSAGE = [
   'Butuh bantuan? ketik /help',
 ].join('\n');
 
-const HELP_MESSAGE = [
+const CUSTOMER_HELP = [
   'ℹ️ Bantuan',
   '',
   'Perintah yang tersedia:',
@@ -34,6 +35,49 @@ const HELP_MESSAGE = [
   'mengecek koneksi domain secara otomatis melalui RDAP/ICANN.',
 ].join('\n');
 
+/** Pesan /start untuk admin (termasuk link panel web bila dikonfigurasi). */
+function adminStartMessage(): string {
+  const web = webAdminUrl();
+  return [
+    'Halo Admin 👋',
+    'Kamu login sebagai admin Mprastore Bot.',
+    '',
+    'Panel Telegram:',
+    '/admin',
+    '/orders',
+    '/pending',
+    '/connected',
+    '/detail',
+    '/lookup',
+    '',
+    'Panel Web:',
+    web ?? '(WEB_PUBLIC_URL belum dikonfigurasi)',
+  ].join('\n');
+}
+
+/** Pesan /help untuk admin (customer help + perintah admin). */
+function adminHelpMessage(): string {
+  const web = webAdminUrl();
+  return [
+    CUSTOMER_HELP,
+    '',
+    '— — —',
+    '',
+    'Perintah Admin:',
+    '/admin - Panel admin',
+    '/orders - 10 order terbaru',
+    '/pending - Order yang perlu diproses',
+    '/connected - Order yang sudah connect',
+    '/detail <id> - Detail order',
+    '/lookup <domain> - Cek RDAP manual',
+    '/reject <id> <alasan> - Tolak order',
+    '/webadmin - Link panel web admin',
+    '',
+    'Panel Web:',
+    web ?? '(WEB_PUBLIC_URL belum dikonfigurasi)',
+  ].join('\n');
+}
+
 /**
  * Daftarkan command /start dan /help.
  */
@@ -49,10 +93,18 @@ export function registerStartCommands(bot: Telegraf<BotContext>): void {
     } catch {
       /* abaikan kegagalan upsert agar /start tetap responsif */
     }
-    await ctx.reply(START_MESSAGE);
+    if (isAdmin(ctx.from.id)) {
+      await ctx.reply(adminStartMessage(), { link_preview_options: { is_disabled: true } });
+    } else {
+      await ctx.reply(CUSTOMER_START);
+    }
   });
 
   bot.help(async (ctx) => {
-    await ctx.reply(HELP_MESSAGE);
+    if (isAdmin(ctx.from?.id)) {
+      await ctx.reply(adminHelpMessage(), { link_preview_options: { is_disabled: true } });
+    } else {
+      await ctx.reply(CUSTOMER_HELP);
+    }
   });
 }

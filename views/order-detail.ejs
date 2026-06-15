@@ -1,0 +1,166 @@
+<%- include('partials/head') %>
+
+<div class="detail-head">
+  <a class="btn btn-sm" href="<%= base %>/orders">← Kembali</a>
+  <span class="badge <%= helpers.statusBadgeClass(order.status) %>"><%= helpers.statusLabelId(order.status) %></span>
+</div>
+
+<% if (order.lastError) { %>
+  <div class="flash flash-error">Error lookup terakhir: <%= order.lastError %></div>
+<% } %>
+
+<div class="detail-grid">
+  <!-- Info Customer -->
+  <section class="card">
+    <h2>Info Customer</h2>
+    <% var cu = order.user || {}; %>
+    <table class="kv">
+      <tr><th>Telegram ID</th><td class="mono"><%= helpers.bigIntToString(order.telegramUserId) %></td></tr>
+      <tr><th>Username</th><td><%= order.username ? '@' + order.username : '-' %></td></tr>
+      <tr><th>Nama Depan</th><td><%= cu.firstName || '-' %></td></tr>
+      <tr><th>Nama Belakang</th><td><%= cu.lastName || '-' %></td></tr>
+      <tr><th>Kontak</th><td><a href="<%= helpers.telegramContactLink(order.username, order.telegramUserId) %>" target="_blank" rel="noopener">Buka Chat</a></td></tr>
+    </table>
+  </section>
+
+  <!-- Info Domain -->
+  <section class="card">
+    <h2>Info Domain</h2>
+    <table class="kv">
+      <tr><th>Domain</th><td class="mono"><%= order.domain %></td></tr>
+      <tr><th>Kode Order</th><td><%= order.orderCode %></td></tr>
+      <tr><th>Tipe NS</th><td><%= helpers.nsTypeLabelId(order.nsType) %></td></tr>
+      <tr><th>ICANN Lookup</th><td><a href="<%= icannUrl %>" target="_blank" rel="noopener">Buka</a></td></tr>
+      <% if (order.rdapRaw && order.rdapRaw.rdapServer) { %>
+        <tr><th>RDAP Server</th><td class="mono"><%= order.rdapRaw.rdapServer %></td></tr>
+      <% } %>
+    </table>
+  </section>
+
+  <!-- Nameserver Tujuan -->
+  <section class="card">
+    <h2>Nameserver Tujuan</h2>
+    <ul class="ns-list">
+      <% if (expected.length === 0) { %><li>(kosong)</li><% } %>
+      <% expected.forEach(function (ns) { %><li class="mono"><%= ns %></li><% }); %>
+    </ul>
+  </section>
+
+  <!-- Nameserver Saat Ini -->
+  <section class="card">
+    <h2>Nameserver Saat Ini</h2>
+    <ul class="ns-list">
+      <% if (current.length === 0) { %><li>(belum ada / belum dicek)</li><% } %>
+      <% current.forEach(function (ns) { %><li class="mono"><%= ns %></li><% }); %>
+    </ul>
+  </section>
+
+  <!-- Status & Timeline -->
+  <section class="card">
+    <h2>Status &amp; Timeline</h2>
+    <table class="kv">
+      <tr><th>Status</th><td><span class="badge <%= helpers.statusBadgeClass(order.status) %>"><%= helpers.statusLabelId(order.status) %></span></td></tr>
+      <tr><th>Dibuat</th><td><%= helpers.formatDate(order.createdAt) %></td></tr>
+      <tr><th>Terakhir Dicek</th><td><%= helpers.formatDate(order.lastCheckedAt) %></td></tr>
+      <tr><th>Terhubung</th><td><%= helpers.formatDate(order.connectedAt) %></td></tr>
+      <tr><th>Ditolak</th><td><%= helpers.formatDate(order.rejectedAt) %></td></tr>
+      <tr><th>Alasan Ditolak</th><td><%= order.rejectReason || '-' %></td></tr>
+    </table>
+  </section>
+
+  <!-- RDAP Raw Summary -->
+  <section class="card">
+    <h2>Ringkasan RDAP</h2>
+    <% if (order.rdapRaw) { %>
+      <table class="kv">
+        <tr><th>ldhName</th><td class="mono"><%= order.rdapRaw.ldhName || '-' %></td></tr>
+        <tr><th>Status</th><td><%= (order.rdapRaw.status || []).join(', ') || '-' %></td></tr>
+        <tr><th>RDAP Server</th><td class="mono"><%= order.rdapRaw.rdapServer || '-' %></td></tr>
+      </table>
+      <% if (order.rdapRaw.events && order.rdapRaw.events.length) { %>
+        <h3>Events</h3>
+        <ul class="ns-list">
+          <% order.rdapRaw.events.forEach(function (e) { %>
+            <li><%= e.eventAction %>: <span class="mono"><%= e.eventDate %></span></li>
+          <% }); %>
+        </ul>
+      <% } %>
+    <% } else { %>
+      <p class="muted">Belum ada data RDAP. Jalankan "Cek Nameserver".</p>
+    <% } %>
+  </section>
+</div>
+
+<!-- Aksi Admin -->
+<section class="card">
+  <h2>Aksi Admin</h2>
+  <div class="actions-row">
+    <form method="POST" action="<%= base %>/orders/<%= order.id %>/check" class="inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <button class="btn btn-primary">🔍 Cek Nameserver Sekarang</button>
+    </form>
+    <% if (order.status === 'FAILED_LOOKUP') { %>
+      <form method="POST" action="<%= base %>/orders/<%= order.id %>/check" class="inline">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <button class="btn btn-orange">🔁 Cek Lagi</button>
+      </form>
+    <% } %>
+    <form method="POST" action="<%= base %>/orders/<%= order.id %>/mark-changed" class="inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <button class="btn btn-green">✅ Tandai Sudah Diubah</button>
+    </form>
+    <form method="POST" action="<%= base %>/orders/<%= order.id %>/reopen" class="inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <button class="btn btn-orange">↩️ Buka Kembali (Waiting Admin)</button>
+    </form>
+    <form method="POST" action="<%= base %>/orders/<%= order.id %>/notify" class="inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <button class="btn">📨 Kirim Update ke Customer</button>
+    </form>
+  </div>
+
+  <form method="POST" action="<%= base %>/orders/<%= order.id %>/reject" class="stacked" onsubmit="return confirm('Tolak order ini?');">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <label>Tolak dengan alasan (opsional)
+      <input type="text" name="reason" placeholder="Contoh: domain tidak valid" />
+    </label>
+    <button class="btn btn-red">❌ Tolak Order</button>
+  </form>
+</section>
+
+<!-- Catatan Internal -->
+<section class="card">
+  <h2>Catatan Internal (tidak terlihat customer)</h2>
+  <form method="POST" action="<%= base %>/orders/<%= order.id %>/note" class="stacked">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <label>Tambah catatan
+      <textarea name="note" rows="2" placeholder="Tulis catatan internal..."></textarea>
+    </label>
+    <button class="btn btn-primary btn-sm">Simpan Catatan</button>
+  </form>
+  <ul class="timeline">
+    <% if (notes.length === 0) { %><li class="muted">Belum ada catatan.</li><% } %>
+    <% notes.forEach(function (n) { %>
+      <li>
+        <div class="timeline-meta"><%= helpers.formatDate(n.createdAt) %></div>
+        <div><%= n.note %></div>
+      </li>
+    <% }); %>
+  </ul>
+</section>
+
+<!-- Audit Logs -->
+<section class="card">
+  <h2>Audit Logs</h2>
+  <ul class="timeline">
+    <% if (logs.length === 0) { %><li class="muted">Belum ada log.</li><% } %>
+    <% logs.forEach(function (l) { %>
+      <li>
+        <div class="timeline-meta"><%= helpers.formatDate(l.createdAt) %> · <span class="mono"><%= l.action %></span></div>
+        <div><%= helpers.auditActionLabel(l.action) %></div>
+      </li>
+    <% }); %>
+  </ul>
+</section>
+
+<%- include('partials/foot') %>

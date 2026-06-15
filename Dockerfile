@@ -14,6 +14,8 @@ RUN npm install
 COPY tsconfig.json ./
 COPY prisma ./prisma
 COPY src ./src
+COPY views ./views
+COPY public ./public
 
 # Generate Prisma client & build TypeScript.
 RUN npx prisma generate
@@ -36,6 +38,8 @@ RUN npm install --omit=dev
 # Salin artefak build & prisma.
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/views ./views
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 

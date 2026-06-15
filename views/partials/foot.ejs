@@ -1,0 +1,16 @@
+      </main>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var toggle = document.getElementById('sidebarToggle');
+      var layout = document.querySelector('.layout');
+      if (toggle && layout) {
+        toggle.addEventListener('click', function () {
+          layout.classList.toggle('sidebar-open');
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
