@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  NEW
+  WAITING_ADMIN
+  ADMIN_CHANGED
+  WAITING_PROPAGATION
+  CONNECTED
+  REJECTED
+  FAILED_LOOKUP
+}
+
+enum NsType {
+  CLOUDFLARE
+  CUSTOM
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  telegramId BigInt   @unique
+  username   String?
+  firstName  String?
+  lastName   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  orders Order[]
+}
+
+model Order {
+  id                  Int         @id @default(autoincrement())
+  orderCode           String      @unique
+  userId              Int
+  telegramUserId      BigInt
+  username            String?
+  domain              String
+  nsType              NsType
+  expectedNameservers Json
+  currentNameservers  Json?
+  status              OrderStatus @default(NEW)
+  lastCheckedAt       DateTime?
+  connectedAt         DateTime?
+  rejectedAt          DateTime?
+  rejectReason        String?
+  rdapRaw             Json?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([telegramUserId])
+}
+
+model AuditLog {
+  id              Int      @id @default(autoincrement())
+  orderId         Int?
+  actorTelegramId BigInt?
+  action          String
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  @@index([orderId])
+}
