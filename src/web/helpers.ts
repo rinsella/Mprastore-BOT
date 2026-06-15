@@ -11,12 +11,16 @@ export function statusLabelId(status: OrderStatus | string): string {
       return 'Baru';
     case OrderStatus.WAITING_ADMIN:
       return 'Menunggu Admin';
+    case OrderStatus.APPROVED:
+      return 'Disetujui';
     case OrderStatus.ADMIN_CHANGED:
       return 'Sudah Diproses Admin';
     case OrderStatus.WAITING_PROPAGATION:
       return 'Menunggu Propagasi';
     case OrderStatus.CONNECTED:
       return 'Terhubung';
+    case OrderStatus.COMPLETED:
+      return 'Selesai';
     case OrderStatus.REJECTED:
       return 'Ditolak';
     case OrderStatus.FAILED_LOOKUP:
@@ -30,11 +34,13 @@ export function statusLabelId(status: OrderStatus | string): string {
 export function statusBadgeClass(status: OrderStatus | string): string {
   switch (status) {
     case OrderStatus.CONNECTED:
+    case OrderStatus.COMPLETED:
       return 'badge-green';
     case OrderStatus.WAITING_PROPAGATION:
     case OrderStatus.ADMIN_CHANGED:
       return 'badge-orange';
     case OrderStatus.WAITING_ADMIN:
+    case OrderStatus.APPROVED:
       return 'badge-blue';
     case OrderStatus.REJECTED:
     case OrderStatus.FAILED_LOOKUP:
@@ -77,10 +83,12 @@ export function nsArray(value: unknown): string[] {
 export function auditActionLabel(action: string): string {
   const map: Record<string, string> = {
     ORDER_CREATED: 'Order Dibuat',
+    ADMIN_APPROVE: 'Order Disetujui',
     ADMIN_MARK_CHANGED: 'Admin Menandai Sudah Diubah',
     STATUS_CONNECTED: 'Status: Terhubung',
     STATUS_WAITING_PROPAGATION: 'Status: Menunggu Propagasi',
     LOOKUP_FAILED: 'Lookup Gagal',
+    ADMIN_COMPLETE: 'Order Selesai',
     ADMIN_REJECT: 'Order Ditolak',
     ADMIN_REJECT_REASON: 'Order Ditolak (dengan alasan)',
     ADMIN_REOPEN: 'Order Dibuka Kembali',

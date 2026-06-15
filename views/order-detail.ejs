@@ -61,8 +61,10 @@
     <table class="kv">
       <tr><th>Status</th><td><span class="badge <%= helpers.statusBadgeClass(order.status) %>"><%= helpers.statusLabelId(order.status) %></span></td></tr>
       <tr><th>Dibuat</th><td><%= helpers.formatDate(order.createdAt) %></td></tr>
+      <tr><th>Disetujui</th><td><%= helpers.formatDate(order.approvedAt) %></td></tr>
       <tr><th>Terakhir Dicek</th><td><%= helpers.formatDate(order.lastCheckedAt) %></td></tr>
       <tr><th>Terhubung</th><td><%= helpers.formatDate(order.connectedAt) %></td></tr>
+      <tr><th>Selesai</th><td><%= helpers.formatDate(order.completedAt) %></td></tr>
       <tr><th>Ditolak</th><td><%= helpers.formatDate(order.rejectedAt) %></td></tr>
       <tr><th>Alasan Ditolak</th><td><%= order.rejectReason || '-' %></td></tr>
     </table>
@@ -95,6 +97,10 @@
 <section class="card">
   <h2>Aksi Admin</h2>
   <div class="actions-row">
+    <form method="POST" action="<%= base %>/orders/<%= order.id %>/approve" class="inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <button class="btn btn-green">👍 Setujui Order</button>
+    </form>
     <form method="POST" action="<%= base %>/orders/<%= order.id %>/check" class="inline">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
       <button class="btn btn-primary">🔍 Cek Nameserver Sekarang</button>
@@ -108,6 +114,10 @@
     <form method="POST" action="<%= base %>/orders/<%= order.id %>/mark-changed" class="inline">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
       <button class="btn btn-green">✅ Tandai Sudah Diubah</button>
+    </form>
+    <form method="POST" action="<%= base %>/orders/<%= order.id %>/complete" class="inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <button class="btn btn-green">🎉 Tandai Selesai</button>
     </form>
     <form method="POST" action="<%= base %>/orders/<%= order.id %>/reopen" class="inline">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>" />

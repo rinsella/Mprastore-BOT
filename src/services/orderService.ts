@@ -226,9 +226,11 @@ export function getCurrentNameservers(order: Order): string[] {
 export interface DashboardStats {
   total: number;
   waitingAdmin: number;
+  approved: number;
   adminChanged: number;
   waitingPropagation: number;
   connected: number;
+  completed: number;
   rejected: number;
   failedLookup: number;
 }
@@ -240,17 +242,21 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const [
     total,
     waitingAdmin,
+    approved,
     adminChanged,
     waitingPropagation,
     connected,
+    completed,
     rejected,
     failedLookup,
   ] = await Promise.all([
     prisma.order.count(),
     prisma.order.count({ where: { status: OrderStatus.WAITING_ADMIN } }),
+    prisma.order.count({ where: { status: OrderStatus.APPROVED } }),
     prisma.order.count({ where: { status: OrderStatus.ADMIN_CHANGED } }),
     prisma.order.count({ where: { status: OrderStatus.WAITING_PROPAGATION } }),
     prisma.order.count({ where: { status: OrderStatus.CONNECTED } }),
+    prisma.order.count({ where: { status: OrderStatus.COMPLETED } }),
     prisma.order.count({ where: { status: OrderStatus.REJECTED } }),
     prisma.order.count({ where: { status: OrderStatus.FAILED_LOOKUP } }),
   ]);
@@ -258,9 +264,11 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   return {
     total,
     waitingAdmin,
+    approved,
     adminChanged,
     waitingPropagation,
     connected,
+    completed,
     rejected,
     failedLookup,
   };
@@ -406,6 +414,8 @@ export async function reopenOrder(
     data: {
       status: OrderStatus.WAITING_ADMIN,
       rejectedAt: null,
+      approvedAt: null,
+      completedAt: null,
       lastError: null,
     },
   });
@@ -432,6 +442,44 @@ export async function markOrderChanged(
     orderId,
     actorTelegramId: actorTelegramId ?? null,
     action: 'ADMIN_MARK_CHANGED',
+  });
+  return updated;
+}
+
+/**
+ * Setujui order (APPROVED). Admin menerima order & akan memprosesnya.
+ */
+export async function approveOrder(
+  orderId: number,
+  actorTelegramId?: number | bigint | null,
+): Promise<Order> {
+  const updated = await prisma.order.update({
+    where: { id: orderId },
+    data: { status: OrderStatus.APPROVED, approvedAt: new Date(), lastError: null },
+  });
+  await addAuditLog({
+    orderId,
+    actorTelegramId: actorTelegramId ?? null,
+    action: 'ADMIN_APPROVE',
+  });
+  return updated;
+}
+
+/**
+ * Tandai order selesai (COMPLETED). Status final yang ditutup admin.
+ */
+export async function completeOrder(
+  orderId: number,
+  actorTelegramId?: number | bigint | null,
+): Promise<Order> {
+  const updated = await prisma.order.update({
+    where: { id: orderId },
+    data: { status: OrderStatus.COMPLETED, completedAt: new Date() },
+  });
+  await addAuditLog({
+    orderId,
+    actorTelegramId: actorTelegramId ?? null,
+    action: 'ADMIN_COMPLETE',
   });
   return updated;
 }

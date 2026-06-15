@@ -9,6 +9,10 @@
     <div class="stat-label">Menunggu Admin</div>
     <div class="stat-value badge-blue-text"><%= stats.waitingAdmin %></div>
   </a>
+  <a class="card stat card-link" href="<%= base %>/orders?status=APPROVED">
+    <div class="stat-label">Disetujui</div>
+    <div class="stat-value badge-blue-text"><%= stats.approved %></div>
+  </a>
   <a class="card stat card-link" href="<%= base %>/orders?status=WAITING_PROPAGATION">
     <div class="stat-label">Menunggu Propagasi</div>
     <div class="stat-value badge-orange-text"><%= stats.waitingPropagation %></div>
@@ -16,6 +20,10 @@
   <a class="card stat card-link" href="<%= base %>/orders?status=CONNECTED">
     <div class="stat-label">Terhubung</div>
     <div class="stat-value badge-green-text"><%= stats.connected %></div>
+  </a>
+  <a class="card stat card-link" href="<%= base %>/orders?status=COMPLETED">
+    <div class="stat-label">Selesai</div>
+    <div class="stat-value badge-green-text"><%= stats.completed %></div>
   </a>
   <a class="card stat card-link" href="<%= base %>/orders?status=REJECTED">
     <div class="stat-label">Ditolak</div>

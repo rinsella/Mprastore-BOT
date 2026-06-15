@@ -30,6 +30,8 @@ import {
   addOrderNote,
   reopenOrder,
   markOrderChanged,
+  approveOrder,
+  completeOrder,
   rejectOrder,
   getRecentOrders,
   getOrderById,
@@ -238,6 +240,44 @@ export function buildAdminRouter(telegram: Telegram, basePath: string): Router {
         ? 'Domain sudah terhubung (CONNECTED).'
         : 'Nameserver belum cocok. Status: Menunggu Propagasi.',
     );
+  });
+
+  router.post('/orders/:id/approve', auth, verifyCsrf, async (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === null) return void res.status(400).send('Order ID tidak valid.');
+    const order = await getOrderById(id);
+    if (!order) return void flashRedirect(req, res, `${basePath}/orders`, 'error', 'Order tidak ditemukan.');
+
+    await approveOrder(id);
+    try {
+      await telegram.sendMessage(
+        order.telegramUserId.toString(),
+        `✅ Order #${order.id} (${order.domain}) sudah disetujui admin dan akan segera diproses.`,
+        { link_preview_options: { is_disabled: true } },
+      );
+    } catch {
+      /* abaikan kegagalan kirim */
+    }
+    flashRedirect(req, res, `${basePath}/orders/${id}`, 'success', 'Order disetujui (APPROVED). Customer diberi tahu.');
+  });
+
+  router.post('/orders/:id/complete', auth, verifyCsrf, async (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === null) return void res.status(400).send('Order ID tidak valid.');
+    const order = await getOrderById(id);
+    if (!order) return void flashRedirect(req, res, `${basePath}/orders`, 'error', 'Order tidak ditemukan.');
+
+    await completeOrder(id);
+    try {
+      await telegram.sendMessage(
+        order.telegramUserId.toString(),
+        `🎉 Order #${order.id} (${order.domain}) telah SELESAI. Terima kasih!`,
+        { link_preview_options: { is_disabled: true } },
+      );
+    } catch {
+      /* abaikan kegagalan kirim */
+    }
+    flashRedirect(req, res, `${basePath}/orders/${id}`, 'success', 'Order ditandai selesai (COMPLETED). Customer diberi tahu.');
   });
 
   router.post('/orders/:id/mark-changed', auth, verifyCsrf, async (req, res) => {

@@ -11,9 +11,11 @@ datasource db {
 enum OrderStatus {
   NEW
   WAITING_ADMIN
+  APPROVED
   ADMIN_CHANGED
   WAITING_PROPAGATION
   CONNECTED
+  COMPLETED
   REJECTED
   FAILED_LOOKUP
 }
@@ -47,7 +49,9 @@ model Order {
   currentNameservers  Json?
   status              OrderStatus @default(NEW)
   lastCheckedAt       DateTime?
+  approvedAt          DateTime?
   connectedAt         DateTime?
+  completedAt         DateTime?
   rejectedAt          DateTime?
   rejectReason        String?
   lastError           String?

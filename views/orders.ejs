@@ -68,6 +68,10 @@
             <td><%= helpers.formatDate(o.lastCheckedAt) %></td>
             <td class="actions-cell">
               <a class="btn btn-xs" href="<%= base %>/orders/<%= o.id %>">Detail</a>
+              <form method="POST" action="<%= base %>/orders/<%= o.id %>/approve" class="inline">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <button class="btn btn-xs btn-green">Setujui</button>
+              </form>
               <form method="POST" action="<%= base %>/orders/<%= o.id %>/check" class="inline">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                 <button class="btn btn-xs">Cek NS</button>
@@ -75,6 +79,10 @@
               <form method="POST" action="<%= base %>/orders/<%= o.id %>/mark-changed" class="inline">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                 <button class="btn btn-xs btn-green">Tandai Diubah</button>
+              </form>
+              <form method="POST" action="<%= base %>/orders/<%= o.id %>/complete" class="inline">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <button class="btn btn-xs btn-green">Selesai</button>
               </form>
               <% if (o.status === 'REJECTED' || o.status === 'FAILED_LOOKUP') { %>
                 <form method="POST" action="<%= base %>/orders/<%= o.id %>/reopen" class="inline">

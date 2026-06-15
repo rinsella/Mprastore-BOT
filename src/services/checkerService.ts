@@ -26,12 +26,16 @@ export function statusLabel(status: OrderStatus): string {
       return 'Baru';
     case OrderStatus.WAITING_ADMIN:
       return 'Menunggu Admin';
+    case OrderStatus.APPROVED:
+      return 'Disetujui';
     case OrderStatus.ADMIN_CHANGED:
       return 'Sudah Diproses Admin';
     case OrderStatus.WAITING_PROPAGATION:
       return 'Menunggu Propagasi';
     case OrderStatus.CONNECTED:
       return 'Terhubung ✅';
+    case OrderStatus.COMPLETED:
+      return 'Selesai ✅';
     case OrderStatus.REJECTED:
       return 'Ditolak ❌';
     case OrderStatus.FAILED_LOOKUP:

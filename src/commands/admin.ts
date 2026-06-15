@@ -10,6 +10,8 @@ import {
   getOrderById,
   getPendingOrders,
   getRecentOrders,
+  approveOrder,
+  completeOrder,
   reopenOrder,
   updateOrder,
 } from '../services/orderService';
@@ -39,8 +41,12 @@ function bullet(list: string[]): string {
 export function buildAdminOrderKeyboard(orderId: number) {
   return Markup.inlineKeyboard([
     [
+      Markup.button.callback('� Setujui', `admin_approve:${orderId}`),
       Markup.button.callback('🔍 Cek Nameserver', `admin_check:${orderId}`),
+    ],
+    [
       Markup.button.callback('✅ Tandai Sudah Diubah', `admin_changed:${orderId}`),
+      Markup.button.callback('🎉 Tandai Selesai', `admin_complete:${orderId}`),
     ],
     [
       Markup.button.callback('❌ Tolak Order', `admin_reject:${orderId}`),
@@ -383,6 +389,56 @@ export function registerAdminCommands(bot: Telegraf<BotContext>): void {
       /* abaikan */
     }
     await ctx.reply(`❌ Order #${id} ditolak dengan alasan tercatat.`);
+  });
+
+  bot.action(/^admin_approve:(\d+)$/, async (ctx) => {
+    if (await blockIfNotAdmin(ctx)) return;
+    const id = parseOrderId(ctx.match[1]);
+    if (id === null) {
+      await ctx.answerCbQuery('Order ID tidak valid.', { show_alert: true });
+      return;
+    }
+    const order = await getOrderById(id);
+    if (!order) {
+      await ctx.answerCbQuery('Order tidak ditemukan.', { show_alert: true });
+      return;
+    }
+    await approveOrder(id, ctx.from?.id);
+    await ctx.answerCbQuery('Order disetujui.');
+    try {
+      await ctx.telegram.sendMessage(
+        order.telegramUserId.toString(),
+        `✅ Order #${order.id} (${order.domain}) sudah disetujui admin dan akan segera diproses.`,
+      );
+    } catch {
+      /* abaikan */
+    }
+    await ctx.reply(`👍 Order #${id} disetujui (APPROVED). Customer diberi tahu.`);
+  });
+
+  bot.action(/^admin_complete:(\d+)$/, async (ctx) => {
+    if (await blockIfNotAdmin(ctx)) return;
+    const id = parseOrderId(ctx.match[1]);
+    if (id === null) {
+      await ctx.answerCbQuery('Order ID tidak valid.', { show_alert: true });
+      return;
+    }
+    const order = await getOrderById(id);
+    if (!order) {
+      await ctx.answerCbQuery('Order tidak ditemukan.', { show_alert: true });
+      return;
+    }
+    await completeOrder(id, ctx.from?.id);
+    await ctx.answerCbQuery('Order ditandai selesai.');
+    try {
+      await ctx.telegram.sendMessage(
+        order.telegramUserId.toString(),
+        `🎉 Order #${order.id} (${order.domain}) telah SELESAI. Terima kasih!`,
+      );
+    } catch {
+      /* abaikan */
+    }
+    await ctx.reply(`🎉 Order #${id} ditandai SELESAI (COMPLETED). Customer diberi tahu.`);
   });
 
   bot.action(/^admin_reopen:(\d+)$/, async (ctx) => {
