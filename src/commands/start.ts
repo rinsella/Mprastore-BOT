@@ -5,34 +5,65 @@ import { isAdmin, webAdminUrl } from '../config';
 
 const CUSTOMER_START = [
   'Halo 👋',
-  'Saya bot order nameserver domain.',
+  'Selamat datang di *Mprastore Bot* — bot untuk mengubah *nameserver domain* kamu.',
   '',
-  'Kamu bisa membuat pesanan ubah nameserver dengan perintah:',
-  '/order',
+  '🚀 Mulai pesanan: /order',
+  '📦 Cek status pesanan: /status',
+  'ℹ️ Panduan lengkap: /help',
   '',
-  'Cek status pesanan:',
-  '/status',
-  '',
-  'Butuh bantuan? ketik /help',
+  'Ketik /help dulu kalau kamu baru pertama kali agar paham alurnya.',
 ].join('\n');
 
 const CUSTOMER_HELP = [
-  'ℹ️ Bantuan',
+  '📖 *Panduan Mprastore Bot*',
   '',
-  'Perintah yang tersedia:',
-  '/order - Buat order ubah nameserver',
-  '/status - Cek status pesanan kamu',
-  '/cancel - Batalkan proses order yang sedang berjalan',
-  '/help - Tampilkan bantuan ini',
+  'Bot ini membantu kamu mengubah *nameserver* domain. Cukup kirim domain & nameserver tujuan, admin akan memproses, lalu bot mengecek koneksi otomatis.',
   '',
-  'Alur order:',
-  '1. Masukkan nama domain',
-  '2. Pilih tipe nameserver (Cloudflare / Custom)',
-  '3. Kirim nameserver tujuan',
-  '4. Konfirmasi order',
+  '━━━━━━━━━━━━━━━━',
+  '🧭 *Cara Order (Langkah demi Langkah)*',
+  '━━━━━━━━━━━━━━━━',
+  '*1.* Ketik /order untuk memulai.',
+  '*2.* Masukkan nama domain kamu.',
+  '    Contoh: `example.com`',
+  '    (tanpa http://, tanpa www, tanpa garis miring)',
+  '*3.* Pilih tipe nameserver lewat tombol:',
+  '    • ☁️ *Cloudflare* — jika pakai Cloudflare',
+  '    • 🔧 *Custom* — nameserver hosting lain',
+  '*4.* Kirim nameserver tujuan (minimal 2), satu per baris.',
+  '    Contoh:',
+  '    `adam.ns.cloudflare.com`',
+  '    `vera.ns.cloudflare.com`',
+  '*5.* Periksa ringkasan, lalu tekan *✅ Buat Order*.',
   '',
-  'Setelah order dibuat, admin akan memproses dan bot akan',
-  'mengecek koneksi domain secara otomatis melalui RDAP/ICANN.',
+  '━━━━━━━━━━━━━━━━',
+  '🔄 *Setelah Order Dibuat*',
+  '━━━━━━━━━━━━━━━━',
+  '• Admin akan *meninjau & menyetujui* pesanan kamu.',
+  '• Setelah diproses, bot mengecek nameserver otomatis via RDAP/ICANN.',
+  '• Kamu akan dapat notifikasi saat domain *sudah terhubung* ✅.',
+  '',
+  '⚠️ *Penting:* Ubah nameserver di tempat kamu beli domain (registrar) sesuai instruksi admin, agar domain bisa terhubung.',
+  '',
+  '━━━━━━━━━━━━━━━━',
+  '📊 *Arti Status Pesanan*',
+  '━━━━━━━━━━━━━━━━',
+  '• *Menunggu Admin* — pesanan masuk, menunggu ditinjau.',
+  '• *Disetujui* — admin menerima & akan memproses.',
+  '• *Sudah Diproses Admin* — sedang dicek koneksinya.',
+  '• *Menunggu Propagasi* — nameserver sedang menyebar (bisa beberapa jam).',
+  '• *Terhubung* ✅ — nameserver sudah cocok.',
+  '• *Selesai* 🎉 — pesanan tuntas.',
+  '• *Ditolak* ❌ — lihat alasan dari admin.',
+  '',
+  '━━━━━━━━━━━━━━━━',
+  '⌨️ *Daftar Perintah*',
+  '━━━━━━━━━━━━━━━━',
+  '/order — Buat order ubah nameserver',
+  '/status — Cek status pesanan kamu',
+  '/cancel — Batalkan proses order yang sedang berjalan',
+  '/help — Tampilkan panduan ini',
+  '',
+  '💬 Ada kendala? Tunggu balasan admin atau hubungi admin lewat kontak yang diberikan.',
 ].join('\n');
 
 /** Pesan /start untuk admin (termasuk link panel web bila dikonfigurasi). */
@@ -96,15 +127,24 @@ export function registerStartCommands(bot: Telegraf<BotContext>): void {
     if (isAdmin(ctx.from.id)) {
       await ctx.reply(adminStartMessage(), { link_preview_options: { is_disabled: true } });
     } else {
-      await ctx.reply(CUSTOMER_START);
+      await ctx.reply(CUSTOMER_START, {
+        parse_mode: 'Markdown',
+        link_preview_options: { is_disabled: true },
+      });
     }
   });
 
   bot.help(async (ctx) => {
     if (isAdmin(ctx.from?.id)) {
-      await ctx.reply(adminHelpMessage(), { link_preview_options: { is_disabled: true } });
+      await ctx.reply(adminHelpMessage(), {
+        parse_mode: 'Markdown',
+        link_preview_options: { is_disabled: true },
+      });
     } else {
-      await ctx.reply(CUSTOMER_HELP);
+      await ctx.reply(CUSTOMER_HELP, {
+        parse_mode: 'Markdown',
+        link_preview_options: { is_disabled: true },
+      });
     }
   });
 }
